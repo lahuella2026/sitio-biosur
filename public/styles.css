@@ -139,7 +139,8 @@ main.simple{ max-width:880px; margin:0 auto; padding:28px 20px 60px; width:100%;
   order:0;
 }
 .cta-pill.pill-whatsapp{
-  background:var(--navy-900); color:#fff; gap:8px; width:auto; padding:10px 22px;
+  background:var(--brand-blue); color:#fff; gap:8px; width:auto; padding:10px 22px;
+  box-shadow:0 16px 38px rgba(11,37,69,.28);
 }
 .cta-pill.pill-whatsapp:hover{ background:var(--navy-800); }
 .cta-pill.pill-whatsapp svg{ width:17px; height:17px; flex-shrink:0; }
