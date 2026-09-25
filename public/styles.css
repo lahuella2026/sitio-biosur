@@ -102,15 +102,16 @@ main.simple{ max-width:880px; margin:0 auto; padding:28px 20px 60px; width:100%;
     url('assets/hero-photo.jpg');
   background-size: cover;
   background-position: center;
-  padding:26px 24px 62px;
+  padding:26px 24px 132px;
 }
 .hero-inner{ max-width:1120px; margin:0 auto; position:relative; display:grid; grid-template-columns:1fr; gap:24px; align-items:center; }
 @media (max-width:900px){ .hero-inner{ grid-template-columns:1fr; } .hero-art{ display:none; } }
 .hero-eyebrow{ font-size:12px; font-weight:700; letter-spacing:.16em; color:var(--blue-100); text-transform:uppercase; margin:0 0 6px; }
 .hero h1{
   font-family:'Archivo','IBM Plex Sans',system-ui,sans-serif; font-weight:900;
-  font-size:clamp(26px,4.2vw,38px); line-height:1.04; margin:0 0 3px; color:#fff;
+  font-size:clamp(30px,5.6vw,52px); line-height:1.04; margin:0 0 3px; color:#fff;
 }
+@media (min-width:480px){ .hero h1{ white-space:nowrap; } }
 .hero h1 em{ font-style:normal; color:#fff; }
 .hero-rule{ width:56px; height:3px; background:var(--brand-blue); border:none; margin:0 0 8px; }
 .hero p{ font-size:14px; color:var(--blue-100); max-width:44ch; line-height:1.35; }
@@ -121,7 +122,7 @@ main.simple{ max-width:880px; margin:0 auto; padding:28px 20px 60px; width:100%;
 .cta-row{
   max-width:1120px; margin:0 auto; padding:0 24px; position:relative; z-index:5;
   display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap;
-  transform:translateY(-50%);
+  transform:translateY(-104px);
 }
 .cta-pill{
   display:inline-flex; align-items:center; justify-content:center; text-align:center;
@@ -145,6 +146,7 @@ main.simple{ max-width:880px; margin:0 auto; padding:28px 20px 60px; width:100%;
 .cta-pill.pill-whatsapp:hover{ background:var(--navy-800); }
 .cta-pill.pill-whatsapp svg{ width:17px; height:17px; flex-shrink:0; }
 @media (max-width:900px){
+  .hero{ padding-bottom:62px; }
   .cta-row{ flex-direction:column; align-items:stretch; transform:translateY(-28px); }
   .cta-pill{ width:100%; }
   .cta-pill.pill-featured{ order:-1; }
