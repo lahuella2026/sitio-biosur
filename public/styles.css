@@ -102,7 +102,7 @@ main.simple{ max-width:880px; margin:0 auto; padding:28px 20px 60px; width:100%;
     url('assets/hero-photo.jpg');
   background-size: cover;
   background-position: center;
-  padding:26px 24px 132px;
+  padding:64px 24px 132px;
 }
 .hero-inner{ max-width:1120px; margin:0 auto; position:relative; display:grid; grid-template-columns:1fr; gap:24px; align-items:center; }
 @media (max-width:900px){ .hero-inner{ grid-template-columns:1fr; } .hero-art{ display:none; } }
