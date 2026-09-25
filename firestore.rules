@@ -1,0 +1,41 @@
+rules_version = '2';
+
+// Reglas del portal de pacientes (laboratoriobiosur.com).
+//
+// - "pacientes": se permite leer UN documento puntual por DNI conocido (get),
+//   nunca listar la colección entera (list). Se usa solo para verificar
+//   identidad al crear la clave del portal (DNI + fecha de nacimiento) y
+//   para el saludo con nombre en el panel. Nadie puede escribir acá desde
+//   el sitio.
+// - "resultados": cada paciente autenticado solo puede leer SUS PROPIOS
+//   resultados (comparando el email sintético dni@laboratoriobiosur.com
+//   con el que se usó para loguearse). Nadie puede escribir acá desde el
+//   sitio -- la carga la hace el sistema interno (BIO DATA) por otra vía.
+//
+// Nota para más adelante: si en algún momento se agrega un backend propio
+// (por ejemplo con Firebase Functions) para validar identidad sin exponer
+// ni un solo documento de "pacientes" al público, estas reglas se pueden
+// cerrar más. Por ahora, con el plan gratuito (Spark), esta es la opción
+// más simple y razonable.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /pacientes/{dni} {
+      allow get: if true;
+      allow list: if false;
+      allow write: if false;
+    }
+
+    match /resultados/{resultadoId} {
+      allow read: if request.auth != null
+                  && request.auth.token.email == resource.data.dni + '@laboratoriobiosur.com';
+      allow write: if false;
+    }
+
+    // Todo lo demás, cerrado por defecto.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
