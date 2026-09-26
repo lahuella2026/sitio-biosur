@@ -3086,13 +3086,21 @@ function construirPdfGrupo(paciente, dni, encontrado){
   doc.setFont('helvetica','normal');
   doc.text(`Protocolo: ${encontrado.protocoloId}`, marginX, y);
   doc.text(`Fecha: ${encontrado.fecha}`, pageW-marginX, y, {align:'right'});
-  y += 6;
+  y += 5;
 
   // Misma cabecera de columnas que un informe de protocolo (pedido de Eva
   // 24/9: "configurar mas prolijo, como las determinaciones de los
   // protocolos, con titulo, tamaño de letra mas chico" -- antes esto era
   // un cartel gigante (26pt) solo, sin nada del formato del resto de los
   // informes).
+  //
+  // Pedido de Eva 26/9 ("las palabras analisis, resultados y valores de
+  // ref deben quedar escritos entre las dos lineas finitas"): esta fila de
+  // títulos de columna va encerrada entre dos líneas finitas -- antes solo
+  // tenía la de abajo, y quedaba pegada a los datos del paciente/protocolo
+  // de arriba sin ninguna separación.
+  doc.setDrawColor(210,218,214); doc.line(marginX, y, pageW-marginX, y);
+  y += 5;
   doc.setFont('helvetica','bold'); doc.setFontSize(9);
   doc.text('ANÁLISIS', marginX, y);
   doc.text('RESULTADO', marginX+62, y);
@@ -5352,7 +5360,14 @@ function construirPdf(p){
     y += 5;
     doc.text(`Protocolo: ${p.protocoloId}`, marginX, y);
     doc.text(`Fecha: ${p.fecha}`, pageW-marginX, y, {align:'right'});
-    y += 6;
+    y += 5;
+    // Pedido de Eva 26/9 ("las palabras analisis, resultados y valores de
+    // ref deben quedar escritos entre las dos lineas finitas"): esta fila
+    // de títulos de columna va encerrada entre dos líneas finitas -- antes
+    // solo tenía la de abajo, y quedaba pegada a los datos del
+    // paciente/protocolo de arriba sin ninguna separación.
+    doc.setDrawColor(210,218,214); doc.line(marginX, y, pageW-marginX, y);
+    y += 5;
     doc.setFont('helvetica','bold'); doc.setFontSize(9);
     doc.text('ANÁLISIS', marginX, y);
     doc.text('RESULTADO', marginX+62, y);
