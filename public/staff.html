@@ -10,7 +10,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<!-- El envío de mails ya no usa EmailJS (ver comentario más abajo, cerca de
+     GAS_ENVIO_URL) -- por eso se sacó de acá el script de @emailjs/browser
+     que estaba antes. -->
 <!-- SDK de Firebase (build "compat", variante clasica/con globales -- no modulos JS,
      igual que el resto de este archivo) para hablar directo con el mismo Firestore
      del sitio publico (pacientes, protocolos, resultados). Esta pagina vive como un
@@ -699,27 +701,31 @@ const LAB = {
   direccion: "Centro Médico Ushuaia - De la Estancia 1925 - TE: 02901-645887 - Ushuaia, Tierra del Fuego",
 };
 
-/* ---------- envío de mail: automático (EmailJS) con fallback semi-automático ----------
-   Mientras estas 3 constantes queden vacías, "Enviar mail" funciona igual que "Enviar WhatsApp":
-   descarga el PDF y abre el mail del sistema con destinatario/asunto/cuerpo ya escritos
-   (solo falta adjuntar el PDF a mano y apretar Enviar). Esto NO requiere ninguna cuenta nueva.
+/* ---------- envío de mail: automático (Google Apps Script) ----------
+   Se probó primero con EmailJS, pero mandar el PDF adjunto es una función
+   paga ahí (probado el 26/9: el más barato son U$D9/mes) y Eva no puede
+   pagarlo. Se resolvió gratis con un script propio de Google Apps Script,
+   corriendo directamente sobre la cuenta databiosur@gmail.com: manda el
+   mail usando la cuota normal de esa casilla de Gmail (sin límites de plan,
+   sin tarjeta, sin cuenta nueva), con el PDF pegado.
 
-   Si en algún momento Eva quiere que salga 100% solo (sin tocar nada), hace falta:
-   1) crear una cuenta gratis en https://www.emailjs.com/
-   2) conectar su casilla (Email Services -> Add New Service) y copiar el "Service ID"
-   3) crear una plantilla (Email Templates -> Create New Template) con estas variables:
-      {{to_email}} {{to_name}} {{subject}} {{message}}
-      y, para el adjunto, agregar un archivo adjunto en la plantilla del tipo "dynamic"
-      apuntando a la variable {{pdf_attachment}} (contenido en base64) con nombre {{pdf_filename}}
-      -- el plan gratuito de EmailJS tiene un límite de tamaño de adjunto; si el PDF no entra,
-      igual se descarga localmente para adjuntarlo a mano.
-   4) copiar el "Template ID" y, en Account -> General, la "Public Key"
-   5) pasarme los 3 valores para completar las constantes de abajo. */
-const EMAILJS_SERVICE_ID = "service_zginwkc";
-const EMAILJS_TEMPLATE_ID = "template_c7r4wcf";
-const EMAILJS_PUBLIC_KEY = "O9TXDzceVi0_wdjTe";
-const EMAILJS_LISTO = !!(EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE_ID && EMAILJS_PUBLIC_KEY);
-try{ if(EMAILJS_LISTO && window.emailjs) window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY }); }catch(e){ console.error('emailjs init', e); }
+   El script vive en https://script.google.com (proyecto "ENVIO MAILS
+   BIOSUR", creado el 26/9/2026 en la cuenta databiosur@gmail.com) y quedó
+   publicado como "Aplicación web" (Ejecutar como: databiosur@gmail.com,
+   Quién tiene acceso: Cualquier usuario). GAS_ENVIO_URL de abajo es la URL
+   de esa publicación, y GAS_SECRETO tiene que ser idéntico al valor SECRETO
+   que está adentro del script (es solo para que nadie más pueda usar esa
+   URL para mandar mails desde la casilla del laboratorio).
+
+   Si algún día hay que tocar el script: script.google.com -> abrir "ENVIO
+   MAILS BIOSUR" -> editar Código.gs -> Implementar -> Gestionar
+   implementaciones -> ícono de lápiz -> "Nueva versión" -> Implementar
+   (¡esto es necesario! grabar el archivo solo no alcanza, una implementación
+   ya publicada se queda con el código viejo hasta que se hace una versión
+   nueva a propósito). */
+const GAS_ENVIO_URL = "https://script.google.com/macros/s/AKfycbwugNRHTm_8w3WuKnlJnWqrYFyUFB38NQQEZDuVxVhhwit-iHNxEacrOJDXlbeHV2OI3Q/exec";
+const GAS_SECRETO = "32i1WIOH0yIFz88uFHtYAFSNMFufdlCO";
+const EMAILJS_LISTO = !!GAS_ENVIO_URL;
 
 // cuenta de Gmail desde la que se mandan los resultados a los pacientes (no la personal de Eva).
 // se usa en urlEnvioMail() para armar el link de "Redactar" de Gmail con esta cuenta ya seleccionada.
@@ -4554,50 +4560,51 @@ async function validarFinal(){
   if(!avanzo) toast('No quedan más protocolos para validar (final)');
 }
 
-/* ---------- envío directo por Gmail (capability "mcp") ----------
-   Si quien tiene el sistema abierto conectó Gmail como conector en su
-   cuenta de Claude (Configuración > Conectores > Gmail, iniciando sesión
-   con databiosur@gmail.com), esto manda el mail YA -- con el PDF adjunto,
-   sin pasar por la ventana de redactar de Gmail. Corre con las credenciales
-   de quien clickea (nunca las de Eva a la fuerza), así que cada persona del
-   equipo que quiera mandar mails así tiene que conectar Gmail en SU propia
-   cuenta de Claude, iniciando sesión con databiosur@gmail.com -- de esa
-   forma todos los mails siguen saliendo desde la misma casilla del
-   laboratorio sin importar quién esté cargando resultados.
-   Si no está disponible (no conectado, sin permiso, error de conexión),
-   devuelve el motivo para que quien llama use el respaldo de siempre
-   (botón manual, abre Gmail para redactar y hay que adjuntar a mano). */
+/* ---------- envío directo por mail (Google Apps Script sobre databiosur@gmail.com) ----------
+   Manda el mail YA, con el PDF adjunto, sin pasar por la ventana de
+   redactar de Gmail -- corre del lado de Google, no depende de quién tiene
+   el sistema abierto ni de que esa persona conecte nada en su propia
+   cuenta, así que funciona igual para cualquiera del equipo. Si falla
+   (sin conexión, Google caído, etc), devuelve el motivo para que quien
+   llama use el respaldo de siempre (botón manual, abre Gmail para redactar
+   y hay que adjuntar a mano).
+   El nombre de las funciones quedó igual que antes (épocas del MCP de
+   Gmail y después de EmailJS) para no tener que tocar cada lugar que las
+   llama. */
 async function gmailMcpDisponible(){
-  try{
-    return !!(EMAILJS_LISTO && window.emailjs);
-  }catch(e){ return false; }
+  return !!EMAILJS_LISTO;
 }
 // Envío en sí, compartido por enviarPorGmailMcp (protocolos normales) y
 // enviarGrupoPorGmailMcp (pantalla de Grupos sanguíneos) -- una sola
-// implementación del emailjs.send(...) real, para que los dos manden
-// siempre de la misma forma, con la misma plantilla (ver comentario
-// arriba de EMAILJS_SERVICE_ID para cómo está armada esa plantilla:
-// {{to_email}} {{to_name}} {{subject}} {{message}} + adjunto dinámico
-// {{pdf_attachment}}/{{pdf_filename}}). El nombre de la función quedó
-// igual que antes (época del MCP de Gmail) para no tener que tocar cada
-// lugar que la llama.
+// implementación real, para que los dos manden siempre de la misma forma.
+// Se manda con Content-Type "text/plain" a propósito (no "application/json")
+// -- así el navegador no le hace una consulta previa ("preflight") a Google
+// Apps Script, que no sabe contestarla y corta el pedido con error de CORS.
+// Apps Script igual puede leer el cuerpo como JSON del lado de adentro.
 async function enviarPdfPorGmailMcp(_mcp, { email, asunto, mensaje, mensajeHtml, armado }){
   let pdfBase64;
   try{ pdfBase64 = armado.doc.output('datauristring').split(',')[1]; }
   catch(e){ return { ok:false, motivo:'sin-pdf' }; }
   try{
-    await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-      to_email: email,
-      subject: asunto,
-      message: mensaje,
-      message_html: mensajeHtml,
-      pdf_attachment: pdfBase64,
-      pdf_filename: armado.filename,
+    const resp = await fetch(GAS_ENVIO_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        secreto: GAS_SECRETO,
+        destinatario: email,
+        asunto: asunto,
+        mensaje: mensaje,
+        mensajeHtml: mensajeHtml,
+        pdfBase64: pdfBase64,
+        nombreArchivo: armado.filename,
+      }),
     });
+    const data = await resp.json();
+    if(!data || !data.ok) return { ok:false, motivo: (data && data.error) || 'error' };
     return { ok:true };
   }catch(e){
-    console.error('envío mail (EmailJS)', e);
-    return { ok:false, motivo: e?.text || e?.code || 'error', detalle: e?.message };
+    console.error('envío mail (Apps Script)', e);
+    return { ok:false, motivo: e?.message || 'error' };
   }
 }
 
@@ -5578,6 +5585,11 @@ function limpiarTelefonoWhatsapp(tel){
 // plataforma que aloja esta página, y no tiene vuelta. Se deja el modo semi-automático
 // de abajo (botones "Enviar mail"/"Enviar WhatsApp") como única forma real de mandar
 // resultados desde acá.
+// ACTUALIZACIÓN (26/9): esto ya NO aplica -- esta página dejó de vivir como Artifact
+// de Claude y ahora es un archivo más del sitio real (Firebase Hosting, el mismo
+// laboratorio-biosur.web.app), sin el sandbox que bloqueaba los fetch/XHR. Por eso el
+// envío automático de arriba (gmailMcpDisponible / enviarPdfPorGmailMcp, con Google
+// Apps Script) sí puede hacer fetch() a un servidor de terceros y funciona.
 //
 // PROBADO Y DESCARTADO (2026-09-16): abrir la ventana de destino con window.open()/
 // location.href disparado desde el código de un click tampoco es confiable acá --
