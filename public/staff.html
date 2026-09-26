@@ -3152,7 +3152,6 @@ function mensajeGrupoHtml(paciente, dni, encontrado){
       <p>Hola ${primerNombre},</p>
       <p>Le confirmamos su grupo y factor sanguíneo: <strong>${tituloMayus(encontrado.valor)}</strong>.</p>
       <p>Le adjuntamos el comprobante en PDF.</p>
-      <p style="color:#54655F;font-size:13px;">Si no ve este mail en su bandeja de entrada, revise la carpeta de spam / correo no deseado.</p>
       <p>¡Gracias por elegirnos!</p>
       <p>Ante cualquier duda o consulta, escribinos al WhatsApp <strong>${LAB.whatsapp}</strong>.</p>
     </div>`;
@@ -5516,13 +5515,17 @@ function construirPdf(p){
   // 0.5) justo arriba del nombre de cada sector -- para el primer sector del
   // informe, quedaba pegada justo debajo de las dos líneas finitas nuevas
   // del encabezado de columnas, y se veía como una tercera línea de otro
-  // grosor/color. Se saca esa línea (se mantiene el mismo espaciado de
-  // antes, solo que ahora ese espacio queda en blanco) y el sector se
-  // distingue nada más que por su título en azul.
-  const ALTURA_HEADER_SECTOR = 12.5;
+  // grosor/color. Se saca esa línea, y el sector se distingue nada más que
+  // por su título en azul.
+  //
+  // Segundo pedido de Eva 26/9, mismo hilo ("que luego de la doble linea con
+  // el texto, aparezcan los titulos de los sectores sin dejar ese gran
+  // espacio"): el espacio en blanco de 8mm (2.5+5.5) que antes hacía falta
+  // para la línea gruesa y su aire de arriba/abajo ya no tiene motivo de
+  // ser -- se achica a 3mm, un espaciado en línea con el resto del informe.
+  const ALTURA_HEADER_SECTOR = 7.5;
   function dibujarHeaderSector(sector){
-    y += 2.5;
-    y += 5.5;
+    y += 3;
     // Un poco más grande que el título de cada prestación (9pt) para que el
     // sector se note como la categoría "de arriba" y no al revés -- antes
     // quedaba más chico (8.5pt) que la prestación y se perdía la jerarquía.
@@ -5710,7 +5713,7 @@ async function generarPdf(){
 /* ---------- mensaje genérico para mail / WhatsApp (mismo texto en los dos canales) ---------- */
 function mensajeResultados(p){
   const primerNombre = (p.pacienteNombre.split(',')[1] || p.pacienteNombre).trim().split(' ')[0];
-  return `Hola ${primerNombre}, le compartimos los resultados de sus análisis del ${p.fecha}. Le adjuntamos el PDF con los resultados. Si no lo ve en su bandeja de entrada, revise la carpeta de spam/correo no deseado. ¡Gracias por elegirnos! Ante cualquier duda o consulta, escribinos al WhatsApp ${LAB.whatsapp}. ${LAB.nombre}.`;
+  return `Hola ${primerNombre}, le compartimos los resultados de sus análisis del ${p.fecha}. Le adjuntamos el PDF con los resultados. ¡Gracias por elegirnos! Ante cualquier duda o consulta, escribinos al WhatsApp ${LAB.whatsapp}. ${LAB.nombre}.`;
 }
 
 // versión específica para WhatsApp: no tiene sentido decir "escribinos al WhatsApp" adentro
@@ -5733,7 +5736,6 @@ function mensajeResultadosHtml(p){
       <p><strong style="font-size:14px;">${LAB.nombre}</strong></p>
       <p>Hola ${primerNombre},</p>
       <p>Le compartimos los resultados de sus análisis del ${p.fecha}. Le adjuntamos el PDF con los resultados.</p>
-      <p style="color:#54655F;font-size:13px;">Si no ve este mail en su bandeja de entrada, revise la carpeta de spam / correo no deseado.</p>
       <p>¡Gracias por elegirnos!</p>
       <p>Ante cualquier duda o consulta, escribinos al WhatsApp <strong>${LAB.whatsapp}</strong>.</p>
     </div>`;
