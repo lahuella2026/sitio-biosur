@@ -2405,6 +2405,33 @@ const Store = (function(){
     }
     return clonar(mem.pacientes[dni]) || null;
   }
+  // Igual que getPaciente, pero forzando la lectura al SERVIDOR (source:
+  // 'server'), sin conformarse con la caché local -- pedido de Eva 26/9:
+  // "edité un paciente, cambié obra social y número, guardé y no lo guardó".
+  // El re-chequeo que ya existía en guardarDatosPacienteYContinuar (pedido
+  // de Eva 24/9, ver ahí) usaba getPaciente(dni) para releer y confirmar el
+  // guardado, pero un .get() normal de Firestore, apenas después de un
+  // update() del mismo cliente, casi siempre contesta con la escritura
+  // "optimista" que el SDK ya aplicó en su caché local -- ANTES de que el
+  // servidor la haya confirmado de verdad. Si en ese momento hay un corte de
+  // conexión (wifi del laboratorio cortándose, por ejemplo), Eva ve
+  // "Cambios guardados" igual, porque el chequeo compara contra esa misma
+  // caché optimista, no contra lo que de verdad quedó en el servidor -- y si
+  // la escritura nunca llega a confirmarse (por el corte) y ella cierra la
+  // pestaña antes de que vuelva la conexión, el cambio se pierde en
+  // silencio. Forzando el re-chequeo a 'server', si no hay conexión de
+  // verdad con el servidor en ese momento, esta lectura tira error (en vez
+  // de contestar con la caché) y ahí sí se dispara el aviso de "no se
+  // pudieron guardar los cambios" en vez de un falso "Cambios guardados".
+  async function getPacienteDesdeServidor(dni){
+    if(db){
+      const snap = await db.doc("pshards/s"+shardPaciente(dni)).get({ source:'server' });
+      if(!snap.exists) return null;
+      const mapa = snap.data();
+      return mapa && mapa[dni] ? clonar(mapa[dni]) : null;
+    }
+    return clonar(mem.pacientes[dni]) || null;
+  }
   async function savePaciente(dni, data){
     if(db){
       const ref = db.doc("pshards/s"+shardPaciente(dni));
@@ -2678,7 +2705,7 @@ const Store = (function(){
       .sort((a,b)=> (b.createdAt||0)-(a.createdAt||0));
   }
 
-  return { init, getPaciente, savePaciente, buscarPacientesPorNombre, getProtocolo, saveProtocolo, listProtocolos, listarProtocolosDePaciente, borrarTodosLosProtocolos, borrarProtocolo, nextNumero, asegurarContadorAlMenos, listProfesionales, saveProfesional, importarProfesionales, volcarMemoriaADb, exportarTodo, isDb: ()=>!!db, ultimoError: ()=>ultimoErrorInit };
+  return { init, getPaciente, getPacienteDesdeServidor, savePaciente, buscarPacientesPorNombre, getProtocolo, saveProtocolo, listProtocolos, listarProtocolosDePaciente, borrarTodosLosProtocolos, borrarProtocolo, nextNumero, asegurarContadorAlMenos, listProfesionales, saveProfesional, importarProfesionales, volcarMemoriaADb, exportarTodo, isDb: ()=>!!db, ultimoError: ()=>ultimoErrorInit };
 })();
 
 /* ---------- utilidades ---------- */
@@ -3397,7 +3424,17 @@ async function guardarDatosPacienteYContinuar(){
     // 24/9) -- si Eva solo corrigió el mail o el teléfono, un guardado que
     // fallara en silencio para ESE campo puntual pasaba desapercibido porque
     // apellido y nombre coincidían igual.
-    const relectura = await Store.getPaciente(dni);
+    // La relectura fuerza 'server' (getPacienteDesdeServidor, no
+    // getPaciente) -- pedido de Eva 26/9: volvió a pasar ("cambié obra
+    // social y número, guardé y no lo guardó"), y la causa era que un
+    // Store.getPaciente (caché normal) contesta con la propia escritura
+    // optimista que el SDK de Firestore ya aplicó en el cliente, ANTES de
+    // que el servidor la confirme -- si en ese momento se corta la
+    // conexión, esa relectura igual "coincide" (compara contra la misma
+    // caché) y muestra éxito aunque el guardado nunca haya llegado al
+    // servidor. Forzando 'server', si no hay conexión real en ese momento
+    // esta lectura tira error en vez de dar un falso OK.
+    const relectura = await Store.getPacienteDesdeServidor(dni);
     if(!relectura){
       throw new Error('la relectura no encontró al paciente recién guardado');
     }
