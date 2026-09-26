@@ -103,8 +103,20 @@ main.simple{ max-width:880px; margin:0 auto; padding:28px 20px 60px; width:100%;
   background-size: cover;
   background-position: center;
   padding:40px 24px 56px;
+  /* la portada absorbe el espacio sobrante de la pantalla -- pedido de Eva
+     26/9: "agrandar la portada para que ocupe toda la pantalla pero sin
+     scrollear". El <body> ya es un flex column con min-height:100vh (para
+     que el footer quede siempre abajo); antes el hero no crecía, así que si
+     el resto del contenido no llegaba a llenar la pantalla, quedaba un hueco
+     vacío después del footer en vez de agrandarse la portada. flex:1 hace
+     que el hero estire ese sobrante -- si en una pantalla chica el resto del
+     contenido ya llena o supera el alto de la pantalla, flex-grow no tiene
+     nada para repartir y el hero queda con su alto normal de siempre (no se
+     fuerza scroll en ningún caso). */
+  display:flex; align-items:center;
+  flex:1 0 auto;
 }
-.hero-inner{ max-width:1120px; margin:0 auto; position:relative; display:grid; grid-template-columns:1fr; gap:24px; align-items:center; }
+.hero-inner{ width:100%; max-width:1120px; margin:0 auto; position:relative; display:grid; grid-template-columns:1fr; gap:24px; align-items:center; }
 @media (max-width:900px){ .hero-inner{ grid-template-columns:1fr; } .hero-art{ display:none; } }
 .hero-eyebrow{ font-size:12px; font-weight:700; letter-spacing:.16em; color:var(--blue-100); text-transform:uppercase; margin:0 0 6px; }
 .hero h1{
