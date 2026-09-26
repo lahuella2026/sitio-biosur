@@ -3028,6 +3028,7 @@ function mensajeGrupoHtml(paciente, dni, encontrado){
       <p>Hola ${primerNombre},</p>
       <p>Le confirmamos su grupo y factor sanguíneo: <strong>${tituloMayus(encontrado.valor)}</strong>.</p>
       <p>Le adjuntamos el comprobante en PDF.</p>
+      <p style="color:#54655F;font-size:13px;">Si no ve este mail en su bandeja de entrada, revise la carpeta de spam / correo no deseado.</p>
       <p>¡Gracias por elegirnos!</p>
       <p>Ante cualquier duda o consulta, escribinos al WhatsApp <strong>${LAB.whatsapp}</strong>.</p>
     </div>`;
@@ -5536,7 +5537,7 @@ async function generarPdf(){
 /* ---------- mensaje genérico para mail / WhatsApp (mismo texto en los dos canales) ---------- */
 function mensajeResultados(p){
   const primerNombre = (p.pacienteNombre.split(',')[1] || p.pacienteNombre).trim().split(' ')[0];
-  return `Hola ${primerNombre}, le compartimos los resultados de sus análisis del ${p.fecha}. ¡Gracias por elegirnos! Ante cualquier duda o consulta, escribinos al WhatsApp ${LAB.whatsapp}. ${LAB.nombre}.`;
+  return `Hola ${primerNombre}, le compartimos los resultados de sus análisis del ${p.fecha}. Le adjuntamos el PDF con los resultados. Si no lo ve en su bandeja de entrada, revise la carpeta de spam/correo no deseado. ¡Gracias por elegirnos! Ante cualquier duda o consulta, escribinos al WhatsApp ${LAB.whatsapp}. ${LAB.nombre}.`;
 }
 
 // versión específica para WhatsApp: no tiene sentido decir "escribinos al WhatsApp" adentro
@@ -5558,7 +5559,8 @@ function mensajeResultadosHtml(p){
     <div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;max-width:480px;margin:0 auto;">
       <p><strong style="font-size:14px;">${LAB.nombre}</strong></p>
       <p>Hola ${primerNombre},</p>
-      <p>Le compartimos los resultados de sus análisis del ${p.fecha}.</p>
+      <p>Le compartimos los resultados de sus análisis del ${p.fecha}. Le adjuntamos el PDF con los resultados.</p>
+      <p style="color:#54655F;font-size:13px;">Si no ve este mail en su bandeja de entrada, revise la carpeta de spam / correo no deseado.</p>
       <p>¡Gracias por elegirnos!</p>
       <p>Ante cualquier duda o consulta, escribinos al WhatsApp <strong>${LAB.whatsapp}</strong>.</p>
     </div>`;
