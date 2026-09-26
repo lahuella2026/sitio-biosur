@@ -184,13 +184,25 @@ main.simple{ max-width:880px; margin:0 auto; padding:28px 20px 60px; width:100%;
 /* ---------- obras sociales (chips) ---------- */
 .section-title{ font-size:15px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em; font-weight:900; margin-bottom:8px; }
 .section-title.section-title-sucursales{ color:var(--navy-900); }
-.chip-row{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
-@media (max-width:900px){ .chip-row{ grid-template-columns:repeat(4,1fr); } }
-@media (max-width:560px){ .chip-row{ grid-template-columns:repeat(3,1fr); } }
+/* flex (no grid) a propósito -- pedido de Eva 26/9: en el celular, la
+   última fila de logos (que no llega a completarse, hoy quedan 2 sueltos
+   de Doctored/Visitar) quedaba pegada a la izquierda en vez de centrada.
+   Con grid, una fila incompleta siempre arranca desde la primera columna;
+   con flex-wrap + justify-content:center, cada fila (completa o no) se
+   centra sola. --chip-cols/--chip-gap simulan el mismo ancho de columna
+   que tenía el grid (100% del ancho repartido entre esa cantidad de
+   chips, descontando los gaps entre ellos). */
+.chip-row{
+  display:flex; flex-wrap:wrap; justify-content:center;
+  --chip-cols:7; --chip-gap:6px; gap:var(--chip-gap);
+}
+@media (max-width:900px){ .chip-row{ --chip-cols:4; } }
+@media (max-width:560px){ .chip-row{ --chip-cols:3; } }
 .chip{
   background:var(--surface-2); border:1px solid var(--grey-cool); color:var(--ink-soft);
   font-size:12px; font-weight:600; padding:4px 12px; border-radius:999px;
   height:32px; display:flex; align-items:center; justify-content:center; text-align:center;
+  flex:0 0 calc((100% - (var(--chip-cols) - 1)*var(--chip-gap))/var(--chip-cols));
 }
 .chip.chip-logo{
   background:#fff; padding:8px 14px; overflow:hidden;
@@ -312,7 +324,7 @@ input:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft)
   .section-obras{ margin-top:6px; }
   .sucursal-row{ gap:8px; }
   .sucursal-card{ padding:5px 14px; }
-  .chip-row{ gap:4px; }
+  .chip-row{ --chip-gap:4px; }
   .chip{ height:29px; }
   .site-footer{ padding:4px 18px; }
 }
