@@ -5506,16 +5506,22 @@ function construirPdf(p){
     doc.setTextColor(20,30,28);
   }
   // Separador entre sectores clínicos (ej. HEMATOLOGÍA / HEMOSTASIA / QUÍMICA
-  // CLÍNICA / ...): una línea + el nombre del sector, para que se note a
-  // simple vista dónde empieza cada grupo del informe -- antes las
-  // prestaciones quedaban todas seguidas, sin ningún corte visual entre
-  // sectores distintos.
+  // CLÍNICA / ...): el nombre del sector, para que se note a simple vista
+  // dónde empieza cada grupo del informe -- antes las prestaciones quedaban
+  // todas seguidas, sin ningún corte visual entre sectores distintos.
+  //
+  // Pedido de Eva 26/9 ("esta bien las dos lineas finitas pero aparecio una
+  // gris gruesa abajo de esas con el texto, saca la gris gruesa"): esto
+  // dibujaba antes una línea gris oscura y más gruesa (150,165,160, ancho
+  // 0.5) justo arriba del nombre de cada sector -- para el primer sector del
+  // informe, quedaba pegada justo debajo de las dos líneas finitas nuevas
+  // del encabezado de columnas, y se veía como una tercera línea de otro
+  // grosor/color. Se saca esa línea (se mantiene el mismo espaciado de
+  // antes, solo que ahora ese espacio queda en blanco) y el sector se
+  // distingue nada más que por su título en azul.
   const ALTURA_HEADER_SECTOR = 12.5;
   function dibujarHeaderSector(sector){
     y += 2.5;
-    doc.setDrawColor(150,165,160); doc.setLineWidth(0.5);
-    doc.line(marginX, y, pageW-marginX, y);
-    doc.setDrawColor(210,218,214); doc.setLineWidth(0.2);
     y += 5.5;
     // Un poco más grande que el título de cada prestación (9pt) para que el
     // sector se note como la categoría "de arriba" y no al revés -- antes
