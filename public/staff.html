@@ -716,7 +716,7 @@ const LAB = {
    4) copiar el "Template ID" y, en Account -> General, la "Public Key"
    5) pasarme los 3 valores para completar las constantes de abajo. */
 const EMAILJS_SERVICE_ID = "service_zginwkc";
-const EMAILJS_TEMPLATE_ID = "ymek59g";
+const EMAILJS_TEMPLATE_ID = "template_c7r4wcf";
 const EMAILJS_PUBLIC_KEY = "O9TXDzceVi0_wdjTe";
 const EMAILJS_LISTO = !!(EMAILJS_SERVICE_ID && EMAILJS_TEMPLATE_ID && EMAILJS_PUBLIC_KEY);
 try{ if(EMAILJS_LISTO && window.emailjs) window.emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY }); }catch(e){ console.error('emailjs init', e); }
@@ -3075,12 +3075,15 @@ async function actualizarLinkMailGrupo(aEl, paciente, dni, encontrado){
 }
 
 async function onClickGrupoMail(ev, paciente, dni, encontrado){
-  if(ev.currentTarget.dataset.listo !== '1'){
+  // ver el comentario en onClickEnviarMail: ev.currentTarget queda null
+  // después de un await, por eso se guarda acá antes de usar cualquier await.
+  const btn = ev.currentTarget;
+  if(btn.dataset.listo !== '1'){
     ev.preventDefault();
     toast('Este paciente no tiene email cargado');
     return;
   }
-  const modo = ev.currentTarget.dataset.gmailMcp;
+  const modo = btn.dataset.gmailMcp;
   if(modo === 'verificando'){
     ev.preventDefault();
     toast('Un momento, verificando la conexión con Gmail…');
@@ -3100,9 +3103,9 @@ async function onClickGrupoMail(ev, paciente, dni, encontrado){
     // si falló de verdad, ahí sí se carga el link de respaldo (recién ahora)
     // y se desactiva el modo directo -- el próximo click ya es un click
     // real del usuario y usa el camino manual, que sí navega de forma confiable.
-    ev.currentTarget.href = urlEnvioMailGrupo(paciente, dni, encontrado) || '#';
-    ev.currentTarget.target = '_blank';
-    ev.currentTarget.dataset.gmailMcp = '0';
+    btn.href = urlEnvioMailGrupo(paciente, dni, encontrado) || '#';
+    btn.target = '_blank';
+    btn.dataset.gmailMcp = '0';
     toast('No se pudo enviar directo — tocá de nuevo para abrir Gmail y adjuntar el PDF a mano');
     return;
   }
@@ -5659,12 +5662,18 @@ async function actualizarLinksEnvio(p){
 }
 
 async function onClickEnviarMail(ev){
-  if(ev.currentTarget.dataset.listo !== '1'){
+  // ev.currentTarget deja de ser válido después de un await (el navegador ya
+  // terminó de despachar el evento para entonces) -- por eso el botón se
+  // guarda en una variable ACÁ, antes de cualquier await, y se usa "btn" de
+  // ahí en más en vez de ev.currentTarget (que si no, queda null y tirar
+  // "Cannot set properties of null (setting 'href')" al volver del await).
+  const btn = ev.currentTarget;
+  if(btn.dataset.listo !== '1'){
     ev.preventDefault();
     toast('Este paciente no tiene email cargado');
     return;
   }
-  const modo = ev.currentTarget.dataset.gmailMcp;
+  const modo = btn.dataset.gmailMcp;
   if(modo === 'verificando'){
     // todavía no se supo si hay Gmail conectado -- el link de respaldo ni
     // siquiera está cargado (ver actualizarLinksEnvio), así que frenamos y
@@ -5689,9 +5698,9 @@ async function onClickEnviarMail(ev){
     // y se desactiva el modo directo en este botón -- el próximo click ya
     // es un click real del usuario y usa el camino manual, que sí navega
     // de forma confiable.
-    ev.currentTarget.href = urlEnvioMail(p) || '#';
-    ev.currentTarget.target = '_blank';
-    ev.currentTarget.dataset.gmailMcp = '0';
+    btn.href = urlEnvioMail(p) || '#';
+    btn.target = '_blank';
+    btn.dataset.gmailMcp = '0';
     toast('No se pudo enviar directo — tocá de nuevo para abrir Gmail y adjuntar el PDF a mano');
     return;
   }
