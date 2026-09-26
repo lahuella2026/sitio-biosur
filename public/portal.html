@@ -267,21 +267,47 @@ onAuthStateChanged(auth, async (user) => {
       listaResultados.innerHTML = `<div class="empty-state">Todavía no tenés resultados cargados en el portal.<br>Apenas se validen, van a aparecer acá.</div>`;
       return;
     }
-    listaResultados.innerHTML = items.map(r => `
+    listaResultados.innerHTML = items.map((r, i) => `
       <div class="res-item">
         <div>
           <div class="fecha">${r.fecha || ""}</div>
           <div class="estado">Validado</div>
         </div>
-        ${r.pdfUrl ? `<a class="btn btn-ghost" style="width:auto;" href="${r.pdfUrl}" target="_blank" rel="noopener">Descargar PDF</a>` : ``}
+        ${r.pdfBase64 ? `<button type="button" class="btn btn-ghost" style="width:auto;" data-pdf-idx="${i}">Ver / descargar PDF</button>` : ``}
       </div>
     `).join("");
+
+    // Ver/descargar: el PDF viene en base64 adentro del mismo resultado (no
+    // hay un archivo aparte guardado en ningún lado) -- se arma un Blob en el
+    // momento y se abre en una pestaña nueva con el visor de PDF del propio
+    // navegador, que ya tiene su botón de descarga/impresión.
+    listaResultados.querySelectorAll("[data-pdf-idx]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const r = items[Number(btn.dataset.pdfIdx)];
+        try{
+          const binario = atob(r.pdfBase64);
+          const bytes = new Uint8Array(binario.length);
+          for(let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+          const blob = new Blob([bytes], { type: "application/pdf" });
+          const url = URL.createObjectURL(blob);
+          window.open(url, "_blank");
+          setTimeout(() => URL.revokeObjectURL(url), 60000);
+        }catch(e){
+          console.error("abrir PDF del portal", e);
+          toastPortal("No pudimos abrir el PDF. Probá de nuevo.");
+        }
+      });
+    });
   }catch(err){
     console.error(err);
     banner(bannerResultados, "warn", "No pudimos cargar tus resultados en este momento. Probá de nuevo más tarde.");
     listaResultados.innerHTML = "";
   }
 });
+
+function toastPortal(msg){
+  banner(document.getElementById("bannerResultados"), "warn", msg);
+}
 </script>
 
 </body>
