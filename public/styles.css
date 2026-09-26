@@ -325,6 +325,14 @@ input:focus{ border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft)
   .sucursal-row{ gap:8px; }
   .sucursal-card{ padding:5px 14px; }
   .chip-row{ --chip-gap:4px; }
-  .chip{ height:29px; }
+  /* pedido de Eva 26/9: en el celular los logos se ven chicos (el chip es
+     bajo y las imágenes tienen bastante margen en blanco adentro del
+     propio PNG), así que se agranda el chip para que el logo se vea más
+     grande -- excepto OSDE, que ya se ve grande/legible tal cual está, así
+     que se le fija un tope aparte a su imagen para que no crezca con el
+     resto (el chip de OSDE sigue midiendo lo mismo que los demás, solo que
+     con más margen alrededor del logo). */
+  .chip{ height:40px; }
+  .chip.chip-logo-fill.bg-osde img{ max-height:17px; }
   .site-footer{ padding:4px 18px; }
 }
