@@ -2397,13 +2397,24 @@ const Store = (function(){
   }
 
   async function getPaciente(dni){
+    // OJO -- causa real encontrada de "edité y no se guardó" (pedido de Eva
+    // 26/9): los pacientes migrados del sistema viejo (Glyms) NO tienen el
+    // DNI guardado como campo adentro de sus propios datos -- el DNI existe
+    // solamente como la CLAVE del mapa del shard. Si esta función devuelve
+    // "tal cual" lo que hay guardado (mapa[dni]), a ese objeto le falta el
+    // campo .dni para cualquier paciente viejo, y como el resto de la app
+    // arrastra App.pacienteActual.dni desde ese objeto, terminaba guardando
+    // con dni=undefined (que Firestore rechaza). Por eso siempre se pisa acá
+    // el campo dni con la clave real del mapa, sin importar lo que traiga
+    // adentro el dato guardado.
     if(db){
       const snap = await db.doc("pshards/s"+shardPaciente(dni)).get();
       if(!snap.exists) return null;
       const mapa = snap.data();
-      return mapa && mapa[dni] ? clonar(mapa[dni]) : null;
+      return mapa && mapa[dni] ? Object.assign(clonar(mapa[dni]), { dni }) : null;
     }
-    return clonar(mem.pacientes[dni]) || null;
+    const p = mem.pacientes[dni];
+    return p ? Object.assign(clonar(p), { dni }) : null;
   }
   // Igual que getPaciente, pero forzando la lectura al SERVIDOR (source:
   // 'server'), sin conformarse con la caché local -- pedido de Eva 26/9:
@@ -2424,13 +2435,17 @@ const Store = (function(){
   // de contestar con la caché) y ahí sí se dispara el aviso de "no se
   // pudieron guardar los cambios" en vez de un falso "Cambios guardados".
   async function getPacienteDesdeServidor(dni){
+    // Mismo tema que en getPaciente (ver comentario ahí): siempre se pisa el
+    // campo dni con la clave real del mapa, porque los pacientes migrados no
+    // lo traen guardado adentro de sus propios datos.
     if(db){
       const snap = await db.doc("pshards/s"+shardPaciente(dni)).get({ source:'server' });
       if(!snap.exists) return null;
       const mapa = snap.data();
-      return mapa && mapa[dni] ? clonar(mapa[dni]) : null;
+      return mapa && mapa[dni] ? Object.assign(clonar(mapa[dni]), { dni }) : null;
     }
-    return clonar(mem.pacientes[dni]) || null;
+    const p = mem.pacientes[dni];
+    return p ? Object.assign(clonar(p), { dni }) : null;
   }
   // Encontrada la causa real del "guardo y no se guarda" (pedido de Eva
   // 26/9) -- antes se decidía entre update() y set() según si el shard ya
@@ -2499,24 +2514,33 @@ const Store = (function(){
     if(!t) return [];
     let encontrados = [];
     if(db){
+      // OJO: Object.values(mapa) descarta la clave del mapa (el DNI). Los
+      // pacientes migrados del sistema viejo no tienen el DNI guardado
+      // adentro de sus propios datos, así que hay que usar Object.entries y
+      // pisar el campo .dni con la clave real -- mismo tema que en
+      // getPaciente/getPacienteDesdeServidor (pedido de Eva 26/9).
       const porShard = await Promise.all(Array.from({length:PACIENTE_SHARDS}, (_,i)=>
         db.doc("pshards/s"+i).get()
           .then(snap=>{
             if(!snap.exists) return [];
             const mapa = clonar(snap.data());
-            return Object.values(mapa).filter(p=>{
-              const hay = `${p.apellido||''} ${p.nombre||''}`.toLowerCase();
-              return hay.includes(t);
-            });
+            return Object.entries(mapa)
+              .filter(([dni,p])=>{
+                const hay = `${p.apellido||''} ${p.nombre||''}`.toLowerCase();
+                return hay.includes(t);
+              })
+              .map(([dni,p])=>Object.assign(p, { dni }));
           })
           .catch(e=>{ console.error('buscarPacientesPorNombre shard', i, e); return []; })
       ));
       encontrados = porShard.flat();
     } else {
-      encontrados = Object.values(mem.pacientes).filter(p=>{
-        const hay = `${p.apellido||''} ${p.nombre||''}`.toLowerCase();
-        return hay.includes(t);
-      });
+      encontrados = Object.entries(mem.pacientes)
+        .filter(([dni,p])=>{
+          const hay = `${p.apellido||''} ${p.nombre||''}`.toLowerCase();
+          return hay.includes(t);
+        })
+        .map(([dni,p])=>Object.assign(clonar(p), { dni }));
     }
     encontrados.sort((a,b)=> `${a.apellido} ${a.nombre}`.localeCompare(`${b.apellido} ${b.nombre}`, 'es'));
     return encontrados.slice(0, limite);
@@ -2716,7 +2740,10 @@ const Store = (function(){
           const snap = await db.doc("pshards/s"+i).get();
           if(snap.exists){
             const mapa = clonar(snap.data());
-            Object.keys(mapa).forEach(dni=>pacientes.push(mapa[dni]));
+            // Pisar .dni con la clave real del mapa (ver comentario en
+            // getPaciente): en el respaldo no puede faltar el DNI de los
+            // pacientes migrados que no lo tienen guardado adentro.
+            Object.keys(mapa).forEach(dni=>pacientes.push(Object.assign(mapa[dni], { dni })));
           }
         }catch(e){ console.error('exportar shard de pacientes', i, e); }
       }
@@ -3449,6 +3476,16 @@ async function guardarDatosPacienteYContinuar(){
   const textoOriginal = btn ? btn.textContent : '';
   try{
     const dni = App.pacienteActual.dni;
+    // Guarda explícita (pedido de Eva 26/9, causa real de "guardé y no se
+    // guardó"): pacientes migrados del sistema viejo no traían el DNI
+    // guardado adentro de sus propios datos, así que App.pacienteActual.dni
+    // podía llegar undefined -- y ahí Firestore rechazaba el guardado
+    // ("Unsupported field value: undefined ... found in field undefined.dni").
+    // Ya se corrigió de raíz en Store (getPaciente/getPacienteDesdeServidor/
+    // buscarPacientesPorNombre ahora siempre pisan .dni con la clave real del
+    // shard), pero se deja esta guarda para que, si alguna vez vuelve a pasar
+    // por otro motivo, el aviso sea claro en vez de un error críptico de Firestore.
+    if(!dni){ toast('⚠ No se pudo identificar el DNI del paciente. Volvé a buscarlo e intentá de nuevo.'); return; }
     // Nombres de pacientes siempre en mayúscula, la tipee como la tipee (Eva
     // quiere uniformidad en toda la app, no que dependa de cómo cada uno cargó).
     const apellido = document.getElementById('pApellido').value.trim().toUpperCase();
