@@ -2432,12 +2432,27 @@ const Store = (function(){
     }
     return clonar(mem.pacientes[dni]) || null;
   }
+  // Encontrada la causa real del "guardo y no se guarda" (pedido de Eva
+  // 26/9) -- antes se decidía entre update() y set() según si el shard ya
+  // existía. Firestore trata las claves del objeto que se le pasa a
+  // update() como "rutas de campo" (para poder referirse a subcampos con
+  // notación de punto, tipo "a.b"), y una ruta de campo sin comillas tiene
+  // que empezar con una letra o "_" -- un DNI (todo números) NO cumple eso,
+  // así que ese ref.update({[dni]: data}) quedaba rechazado por Firestore
+  // (error invalid-argument) cada vez que el shard de ese DNI ya tenía
+  // pacientes cargados -- es decir, en la enorme mayoría de los casos,
+  // dado que ya hay ~26.000 pacientes migrados repartidos en apenas 200
+  // shards. set() en cambio NO interpreta las claves del objeto como rutas
+  // de campo (las toma tal cual, como el resto de la data del documento),
+  // así que no tiene ese problema -- por eso guardar un paciente NUEVO
+  // (que entra por el else, con set()) siempre funcionó bien. Se pasa a
+  // usar siempre set(..., {merge:true}) (upsert: crea o actualiza igual),
+  // sacando de paso el ref.get() previo que solo servía para decidir entre
+  // una rama y otra.
   async function savePaciente(dni, data){
     if(db){
       const ref = db.doc("pshards/s"+shardPaciente(dni));
-      const snap = await ref.get();
-      if(snap.exists) await ref.update({ [dni]: data });
-      else await ref.set({ [dni]: data });
+      await ref.set({ [dni]: data }, { merge:true });
       return;
     }
     mem.pacientes[dni] = clonar(data);
@@ -3390,30 +3405,42 @@ function abrirFormPaciente(dni, data, modo){
 // protocolo (de siempre); en "editar" (desde "Buscar paciente", pedido de
 // Eva 24/9) guarda y se queda en la misma ficha.
 async function guardarDatosPacienteYContinuar(){
-  const dni = App.pacienteActual.dni;
-  // Nombres de pacientes siempre en mayúscula, la tipee como la tipee (Eva
-  // quiere uniformidad en toda la app, no que dependa de cómo cada uno cargó).
-  const apellido = document.getElementById('pApellido').value.trim().toUpperCase();
-  const nombre = document.getElementById('pNombre').value.trim().toUpperCase();
-  const fechaNac = document.getElementById('pFechaNac').value;
-  if(!apellido || !nombre){ toast('Falta apellido o nombre'); return; }
-  if(!fechaNac){ toast('Falta la fecha de nacimiento'); return; }
-  const data = {
-    dni, apellido, nombre, fechaNac,
-    sexo: document.getElementById('pSexo').value,
-    telefono: document.getElementById('pTelefono').value.trim(),
-    email: document.getElementById('pEmail').value.trim(),
-    plan: document.getElementById('pPlan').value,
-    afiliado: document.getElementById('pAfiliado').value.trim(),
-    nota: document.getElementById('pNota').value.trim(),
-    updatedAt: Date.now(),
-  };
+  // TODO el cuerpo de la función va dentro de un único try/catch -- pedido
+  // de Eva 26/9: volvió a pasar lo de "cambié obra social y número, guardé
+  // y no lo guardó", pero esta vez sin NINGÚN cartel, ni siquiera el de
+  // error que ya existía más abajo. Eso quiere decir que la función se
+  // debe haber cortado con una excepción de JS en algún punto ANTES de
+  // llegar a ese try/catch (que hasta ahora solo envolvía el guardado en
+  // sí) -- por ejemplo al leer algún campo del formulario -- y como nada
+  // atajaba ese error, quedaba completamente en silencio para Eva (ni
+  // mensaje ni pista de qué pasó). Envolviendo TODO el cuerpo, cualquier
+  // error en cualquier punto termina siempre en el mismo cartel de "no se
+  // pudieron guardar los cambios" (con el motivo técnico adentro), nunca
+  // en silencio total.
   const btn = document.getElementById('btnContinuarProtocolo');
-  const textoOriginal = btn.textContent;
-  const esEditar = App.pacienteModo === 'editar';
-  btn.disabled = true;
-  if(esEditar) btn.textContent = 'Guardando…';
+  const textoOriginal = btn ? btn.textContent : '';
   try{
+    const dni = App.pacienteActual.dni;
+    // Nombres de pacientes siempre en mayúscula, la tipee como la tipee (Eva
+    // quiere uniformidad en toda la app, no que dependa de cómo cada uno cargó).
+    const apellido = document.getElementById('pApellido').value.trim().toUpperCase();
+    const nombre = document.getElementById('pNombre').value.trim().toUpperCase();
+    const fechaNac = document.getElementById('pFechaNac').value;
+    if(!apellido || !nombre){ toast('Falta apellido o nombre'); return; }
+    if(!fechaNac){ toast('Falta la fecha de nacimiento'); return; }
+    const data = {
+      dni, apellido, nombre, fechaNac,
+      sexo: document.getElementById('pSexo').value,
+      telefono: document.getElementById('pTelefono').value.trim(),
+      email: document.getElementById('pEmail').value.trim(),
+      plan: document.getElementById('pPlan').value,
+      afiliado: document.getElementById('pAfiliado').value.trim(),
+      nota: document.getElementById('pNota').value.trim(),
+      updatedAt: Date.now(),
+    };
+    const esEditar = App.pacienteModo === 'editar';
+    btn.disabled = true;
+    if(esEditar) btn.textContent = 'Guardando…';
     await Store.savePaciente(dni, data);
     // Se relee lo recién guardado para confirmar que realmente quedó en la
     // base -- antes, si el guardado fallaba en silencio (por ejemplo un
@@ -3443,6 +3470,16 @@ async function guardarDatosPacienteYContinuar(){
     if(campoQueNoCoincide){
       throw new Error(`la relectura no coincide con lo recién guardado (campo: ${campoQueNoCoincide})`);
     }
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
+    App.pacienteActual = data;
+    if(esEditar){
+      // Modo "editar" (viene de "Buscar paciente"): guarda y se queda en la
+      // misma ficha -- para ir a un protocolo se usa "Nuevo protocolo".
+      toast('Cambios guardados');
+      return;
+    }
+    abrirNuevoProtocolo(data);
   }catch(e){
     // Se agrega el motivo técnico (e.code de la base compartida, o el mensaje
     // de la excepción) al aviso -- así, si vuelve a pasar, Eva puede pasarme
@@ -3451,20 +3488,8 @@ async function guardarDatosPacienteYContinuar(){
     console.error('guardar paciente', e);
     const motivo = (e && (e.code || e.message)) ? ` (${e.code || e.message})` : '';
     toast(`⚠ No se pudieron guardar los cambios${motivo}. Probá de nuevo en un momento.`);
-    btn.disabled = false;
-    btn.textContent = textoOriginal;
-    return;
+    if(btn){ btn.disabled = false; btn.textContent = textoOriginal; }
   }
-  btn.disabled = false;
-  btn.textContent = textoOriginal;
-  App.pacienteActual = data;
-  if(esEditar){
-    // Modo "editar" (viene de "Buscar paciente"): guarda y se queda en la
-    // misma ficha -- para ir a un protocolo se usa "Nuevo protocolo".
-    toast('Cambios guardados');
-    return;
-  }
-  abrirNuevoProtocolo(data);
 }
 document.getElementById('btnContinuarProtocolo').addEventListener('click', guardarDatosPacienteYContinuar);
 
