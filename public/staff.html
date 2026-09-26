@@ -798,21 +798,27 @@ iniciarFirebase();
 const PDF_PORTAL_MAX_BYTES = 700 * 1024;
 
 async function guardarResultadoPortal(p){
+  console.log('[portal] arranca, _fbReady=', _fbReady, '_fbUltimoError=', _fbUltimoError);
   if(!_fbReady) await iniciarFirebase();
-  if(!_fbReady) return { ok:false, motivo:'sin-conexion' };
+  console.log('[portal] tras iniciarFirebase, _fbReady=', _fbReady, '_fbUltimoError=', _fbUltimoError);
+  if(!_fbReady){ console.log('[portal] ABORTA: sin conexión (no se guarda nada)'); return { ok:false, motivo:'sin-conexion' }; }
   if(!p.pacienteDni) return { ok:false, motivo:'sin-dni' };
   let pdfBase64 = null;
   try{
     const armado = construirPdf(p);
+    console.log('[portal] construirPdf devolvió:', armado ? 'un PDF' : 'null (no se pudo armar)');
     if(armado){
       const b64 = armado.doc.output('datauristring').split(',')[1];
       // tamaño real en bytes del binario (no del string base64, que pesa más)
       const bytesAprox = Math.ceil(b64.length * 3 / 4);
+      console.log('[portal] tamaño del PDF:', bytesAprox, 'bytes (tope:', PDF_PORTAL_MAX_BYTES, ')');
       if(bytesAprox <= PDF_PORTAL_MAX_BYTES) pdfBase64 = b64;
       else console.warn('PDF demasiado pesado para guardar en el portal:', bytesAprox, 'bytes');
     }
   }catch(e){ console.error('construirPdf (para el portal)', e); }
+  console.log('[portal] pdfBase64 final:', pdfBase64 ? `string de ${pdfBase64.length} caracteres` : 'null');
   try{
+    console.log('[portal] escribiendo en Firestore, protocoloId=', p.protocoloId);
     await firebase.firestore().collection('resultados').doc(p.protocoloId).set({
       dni: p.pacienteDni,
       estado: 'validado_final',
@@ -823,9 +829,10 @@ async function guardarResultadoPortal(p){
       pdfFilename: pdfBase64 ? `${p.protocoloId}_${(p.pacienteNombre||'').replace(/[^a-zA-Z0-9]+/g,'_')}.pdf` : null,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
+    console.log('[portal] escritura OK');
     return { ok:true };
   }catch(e){
-    console.error('guardarResultadoPortal', e);
+    console.error('guardarResultadoPortal', e, 'código:', e?.code, 'mensaje:', e?.message);
     return { ok:false, motivo: e?.code || 'error' };
   }
 }
